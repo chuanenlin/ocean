@@ -1,0 +1,987 @@
+<!DOCTYPE HTML>
+<html xml:lang="en" lang="en">
+<!-- <meta http-equiv="refresh" content="0; URL='http://ocean.nfshost.com/'" /> -->
+<meta charset="UTF-8">
+
+<head>
+  <title>The Ocean Story</title>
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v3.20.1/build/ol.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.2.0/css/ol.css" />
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/css-toggle-switch@latest/dist/toggle-switch.css" />
+  <link rel="stylesheet" type="text/css" href="style.css" />
+  <link rel="stylesheet" type="text/css" href="button.css" />
+</head>
+
+<body>
+  <div id="title"></div>
+  <div id="desc"></div>
+  <div id="startButton">
+    <button onclick="loadTwo()">Start<span></span></button>
+  </div>
+  <div id="bubbles"></div>
+  <div id="nextButtonOne" class="nextButton" onclick="loadThree()">Next</div>
+  <div id="nextButtonTwo" class="nextButton" onclick="loadFour()">Next</div>
+  <div id="nextButtonThree" class="nextButton" onclick="loadFive()">Next</div>
+  <div id="nextButtonFour" class="nextButton" onclick="loadSix()">Next</div>
+  <div id="nextButtonFive" class="nextButton" onclick="loadSeven()">Next</div>
+  <div id="nextButtonSix" class="nextButton" onclick="loadInteractive()">Next</div>
+  <div id="overlay"></div>
+  <div id="map" class="map" align="center">
+    <div class="label" id="gyre-na">North Atlantic Gyre</div>
+    <div class="label" id="gyre-sa">South Atlantic Gyre</div>
+    <div class="label" id="gyre-io">Indian Ocean Gyre</div>
+    <div class="label" id="gyre-wp">West Pacific Gyre</div>
+    <div class="label" id="gyre-ep">East Pacific Gyre</div>
+    <div class="label" id="gyre-sp">South Pacific Gyre</div>
+  </div>
+  <div id="mode" class="switch-toggle switch-candy" style="width: 250px">
+    <input id="heat" name="plot" type="radio" checked>
+    <label for="heat" style="font-size: 12px" onclick="togglePlotMode('heatmap')">Heatmap</label>
+    <input id="line" name="plot" type="radio">
+    <label for="line" style="font-size: 12px" onclick="togglePlotMode('line')">Weighted Center</label>
+    <a></a>
+  </div>
+  <div id="statusDisplay"></div>
+  <div id="timelineDisplay"></div>
+  <div id="coordinatesDisplayStory"></div>
+  <div id="coordinatesDisplay"></div>
+  <div id="restartDisplay" onClick="window.location.reload()"></div>
+  <dialog id="modeHint" open>
+    Click to toggle between plotting a heatmap</br>or a path of the weighted central points.
+  </dialog>
+  <dialog id="statusHint" open>
+    Displays a status message.
+  </dialog>
+  <dialog id="timelineHint" open>
+    Displays the current prediction time period.
+  </dialog>
+  <dialog id="coordinatesHint" open>
+    Displays the coordinates being plotted or the coordinates of the cursor.
+  </dialog>
+  <dialog id="restartHint" open>
+    Click anytime to replay the entire story.
+  </dialog>
+  <dialog id="mapHint" open>
+    Click on a coordinate on the ocean to start a prediction.
+  </dialog>
+
+  <script>
+    var d;
+    var map;
+    var longitude;
+    var latitude;
+    var avgLong;
+    var avgLat;
+    var year = 0;
+    var month = 0;
+    var linePlotter;
+    var heatPlotter;
+    var longArray = [];
+    var latArray = [];
+    var lineLayer;
+    var pointLayerOld;
+    var pointLayerEnd;
+    var heatLayer;
+    var plotMode = "heatmap";
+    var gyreCircle;
+    var extraGyreCircle;
+    var interactiveMode = false;
+
+    // add progress bar
+
+    loadOne();
+
+    function loadOne() {
+      map();
+      loadLabels();
+      document.getElementById("map").style.pointerEvents = "none";
+      document.getElementById("mode").style.pointerEvents = "none";
+      $("#title").text("There will be more plastic than fish in the ocean by 2050.");
+      $("#desc").text("The World Economic Forum, 2016");
+    }
+
+    function loadTwo() {
+      $("#title").text("Lost at sea");
+      $("#desc").text(
+        "On January, 10th, 1992, twelve shipping crates carrying 28,800 plastic bath toys were lost at sea when they were washed overboard on its way from Hong Kong to Tacoma, Washington, USA. These ocean travelers were dubbed the friendly floatees."
+      );
+      $("#startButton").hide();
+      $("#nextButtonOne").show();
+      $("#bubbles").show();
+      $("#title").css("height", "650px");
+      $("#desc").css("height", "500px");
+      generateFloatees();
+    }
+
+    function generateFloatees() {
+      var w = 1500,
+          h = 750;
+
+      var nodes = d3.range(1000).map(function() {
+          return {
+            radius: Math.random() * 3 + 4
+          };
+        }),
+        color = d3.scale.category20();
+
+      var force = d3.layout.force()
+        .gravity(0.05)
+        .charge(function(d, i) {
+          return i ? 0 : -2000;
+        })
+        .nodes(nodes)
+        .size([w, h]);
+
+      var root = nodes[0];
+      root.radius = 0;
+      root.fixed = true;
+
+      force.start();
+
+      var svg = d3.select("#bubbles").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+
+      svg.selectAll("circle")
+        .data(nodes.slice(1))
+        .enter().append("svg:circle")
+        .attr("r", function(d) {
+          return d.radius - 2;
+        })
+        .style("fill", function(d, i) {
+          return color(i % 3);
+        });
+
+      force.on("tick", function(e) {
+        var q = d3.geom.quadtree(nodes),
+          i = 0,
+          n = nodes.length;
+
+        while (++i < n) {
+          q.visit(handleCollision(nodes[i]));
+        }
+
+        svg.selectAll("circle")
+          .attr("cx", function(d) {
+            return d.x;
+          })
+          .attr("cy", function(d) {
+            return d.y;
+          });
+      });
+
+      svg.on("mousemove", function() {
+        var p1 = d3.mouse(this);
+        root.px = p1[0];
+        root.py = p1[1];
+        force.resume();
+      });
+
+    }
+
+    function handleCollision(node) {
+      var r = node.radius + 5,
+        nx1 = node.x - r,
+        nx2 = node.x + r,
+        ny1 = node.y - r,
+        ny2 = node.y + r;
+      return function(quad, x1, y1, x2, y2) {
+        if (quad.point && (quad.point !== node)) {
+          var x = node.x - quad.point.x,
+            y = node.y - quad.point.y,
+            l = Math.sqrt(x * x + y * y),
+            r = node.radius + quad.point.radius;
+          if (l < r) {
+            l = (l - r) / l * .5;
+            node.x -= x *= l;
+            node.y -= y *= l;
+            quad.point.x += x;
+            quad.point.y += y;
+          }
+        }
+        return x1 > nx2 ||
+          x2 < nx1 ||
+          y1 > ny2 ||
+          y2 < ny1;
+      };
+    }
+
+    function loadThree() {
+      $("#bubbles").hide();
+      $("#title").css("height", "300px");
+      $("#desc").css("height", "150px");
+      $("#desc").css("width", "1000px");
+      $("#title").text("Moby duck");
+      $("#desc").text(
+        "University of Washington oceanographers, Curtis Ebbesmeyer and James Ingraham, quickly began tracking their progress. Over the next 20 years, they charted the world’s powerful ocean currents, most notably the currents throughout the Pacific Ocean."
+      );
+      $("#title").css("background-color", "rgba(255, 255, 255, 0.5)");
+      $("#overlay").hide();
+      $("#nextButtonOne").hide();
+      $("#nextButtonTwo").show();
+      $("#nextButtonTwo").css("opacity", "0.3");
+      $("#nextButtonTwo").css("bottom", "220px");
+      document.getElementById("nextButtonTwo").style.pointerEvents = "none";
+      longitude = -169;
+      latitude = 25;
+      importCSV();
+    }
+
+    function loadFour() {
+      $("#title").text("The Great Pacific Garbage Patch");
+      $("#desc").text(
+        "Through their studies, they discovered a significant phenomenon: The Great Pacific Garbage Patch, areas in the Pacific Ocean with composite sizes as large as Western Europe where circulating currents trap colossal masses of garbage in large revolving gyres."
+      );
+      $("#nextButtonTwo").hide();
+      $("#nextButtonThree").show();
+      $("#nextButtonThree").css("bottom", "220px");
+      var gyreWP = new ol.Overlay({
+        element: document.getElementById("gyre-wp")
+      });
+      var gyreEP = new ol.Overlay({
+        element: document.getElementById("gyre-ep")
+      });
+      var gyreWPLocation = ol.proj.fromLonLat([146, 29]);
+      var gyreEPLocation = ol.proj.fromLonLat([-167, 30]);
+      map.addOverlay(gyreWP);
+      map.addOverlay(gyreEP);
+      gyreWP.setPosition(gyreWPLocation);
+      gyreEP.setPosition(gyreEPLocation);
+      circleGyre(-157, 28);
+      extraCircleGyre(158, 28);
+    }
+
+    function extraCircleGyre(long, lat) {
+      var vectorGyreCircle = new ol.source.Vector({});
+      var coordinateGyreCircle = ol.proj.fromLonLat([long, lat]);
+      var featureGyreCircle = new ol.Feature({
+        geometry: new ol.geom.Point(coordinateGyreCircle)
+      });
+      vectorGyreCircle.addFeature(featureGyreCircle);
+      extraGyreCircle = new ol.layer.Vector({
+        source: vectorGyreCircle,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            fill: new ol.style.Fill({
+              color: [255, 0, 0, 0.5],
+              weight: 10
+            }),
+            radius: 100
+          }),
+        })
+      });
+      map.addLayer(extraGyreCircle);
+    }
+
+    function loadFive() {
+      $("#title").css("background-color", "rgba(255, 255, 255, 0)");
+      $("#overlay").show();
+      $("#title").css("height", "650px");
+      $("#desc").css("height", "500px");
+      $("#title").text("Ocean trash anatomy");
+      $("#desc").text("What are all these trash accumulated of? Hover over the palettes. The data is based on trash collected from the Ocean Conservancy's coastal cleanup efforts in 2016.");
+      $("#nextButtonThree").hide();
+      $("#nextButtonFour").show();
+      $("#nextButtonFour").css("bottom", "50px");
+      generatePalette();
+    }
+
+    function generatePalette() {
+      var data = [{
+          "item": "cigarette butts",
+          "quantity": 2127565
+        },
+        {
+          "item": "plastic beverage bottles",
+          "quantity": 1024470
+        },
+        {
+          "item": "food wrappers",
+          "quantity": 888589
+        },
+        {
+          "item": "plastic bottle caps",
+          "quantity": 861340
+        },
+        {
+          "item": "straws and stirrers",
+          "quantity": 439571
+        },
+        {
+          "item": "other plastic bags",
+          "quantity": 424934
+        },
+        {
+          "item": "glass beverage bottles",
+          "quantity": 402375
+        },
+        {
+          "item": "plastic grocery bags",
+          "quantity": 402122
+        },
+        {
+          "item": "metal bottle caps",
+          "quantity": 381669
+        },
+        {
+          "item": "plastic lids",
+          "quantity": 351585
+        }
+      ];
+      var margin = {
+        top: 40,
+        left: 40,
+        right: 40,
+        bottom: 40
+      };
+      width = 350;
+      height = 350;
+      radius = Math.min(width - 100, height - 100) / 2;
+      var color = d3.scale.category20();
+      var arc = d3.svg.arc()
+        .outerRadius(radius - 230)
+        .innerRadius(radius - 50)
+        .cornerRadius(20);
+      var arcOver = d3.svg.arc()
+        .outerRadius(radius + 50)
+        .innerRadius(0);
+
+      var a = width / 2;
+      var b = height / 2 - 90;
+      var svg = d3.select("#desc").append("svg")
+        .attr("viewBox", "0 0 " + width + " " + height / 2)
+        .attr("preserveAspectRatio", "xMidYMid meet")
+        .append("g")
+        .attr("class", "palette")
+        .attr("transform", "translate(" + a + "," + b + ")");
+
+      var div = d3.select("body")
+        .append("div")
+        .attr("class", "tooltip");
+      var pie = d3.layout.pie()
+        .sort(null)
+        .value(function(d) {
+          return d.quantity;
+        })
+        .padAngle(.02);
+      var g = svg.selectAll(".arc")
+        .data(pie(data))
+        .enter()
+        .append("g")
+        .attr("class", "arc")
+        .on("mousemove", function(d) {
+          var mouseVal = d3.mouse(this);
+          div.style("display", "none");
+          div
+            .html(d.data.quantity + " pieces of " + d.data.item)
+            .style("left", (d3.event.pageX + 12) + "px")
+            .style("top", (d3.event.pageY - 10) + "px")
+            .style("opacity", 1)
+            .style("display", "block");
+        })
+        .on("mouseout", function() {
+          div.html("").style("display", "none");
+        });
+
+      g.append("path")
+        .attr("d", arc)
+        .style("fill", function(d) {
+          return color(d.data.item);
+        })
+        .attr("d", arc);;
+    }
+
+    function loadSix() {
+      $("#title").text("Plastics live longer than you");
+      $("#desc").text("Trash will just decompose... right? These are just some materials that can fit on a bar chart with logarithmic scale. Glass and styrofoam simply do not decompose at all.");
+      $("#desc").css("width", "1000");
+      $("#nextButtonFour").hide();
+      $("#nextButtonFive").show();
+      generateBars();
+    }
+
+    function generateBars() {
+      var margin = {
+          top: 15,
+          right: 40,
+          bottom: 80,
+          left: 40
+        },
+        width = 960 - margin.left - margin.right,
+        height = 460 - margin.top - margin.bottom;
+
+      var svg = d3.select("#desc").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      d3.tsv("bar.tsv", function(data) {
+        var x = d3.scale.ordinal()
+          .domain(data.map(function(d) {
+            return d.Material;
+          }))
+          .rangeBands([0, width]);
+
+        var y = d3.scale.log()
+          .domain([0.09, 600])
+          .range([height, 0]);
+
+        var xAxis = d3.svg.axis()
+          .scale(x)
+          .orient("bottom")
+          .tickSize([0]);
+
+        var yAxis = d3.svg.axis()
+          .scale(y)
+          .orient("left")
+          .tickSize([0])
+          .tickFormat(function(d) {
+            return y.tickFormat(0, d3.format(",d"))(d)
+          });
+
+        svg.append("g")
+          .attr("class", "barAxis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis)
+          .selectAll("text")
+          .style("text-anchor", "end")
+          .attr("dx", "-.8em")
+          .attr("dy", "-.55em")
+          .attr("transform", "rotate(-90)");
+
+        svg.append("g")
+          .attr("class", "barAxis")
+          .call(yAxis);
+
+        svg.selectAll("rectangle")
+          .data(data)
+          .enter()
+          .append("rect")
+          .attr("class", "bar")
+          .attr("width", width / data.length)
+          .attr("height", function(d) {
+            return height - y(+d.Years);
+          })
+          .attr("x", function(d, i) {
+            return (width / data.length) * i;
+          })
+          .attr("y", function(d) {
+            return y(+d.Years);
+          })
+          .append("title")
+          .text(function(d) {
+            return d.Material + " takes " + d.Years + " years on average to decompose!";
+          });
+
+        svg.append("line")
+          .style("stroke", "#ff7f0e")
+          .attr("x1", 0)
+          .attr("y1", 89)
+          .attr("x2", width)
+          .attr("y2", 89)
+
+        svg.append("text")
+          .attr("class", "barReference")
+          .attr("x", 3)
+          .attr("y", 86)
+          .attr("text-anchor", "start")
+          .text("World average life expectancy (72)")
+
+        svg.append("text")
+          .attr("class", "barLabel")
+          .attr("x", -(height / 2))
+          .attr("y", -30)
+          .attr("transform", "rotate(-90)")
+          .attr("text-anchor", "middle")
+          .text("Time to decompose (years)")
+
+        svg.append("text")
+          .attr("class", "barLabel")
+          .attr("x", width / 2)
+          .attr("y", height + 75)
+          .attr("text-anchor", "middle")
+          .text("Material")
+      });
+    }
+
+    function loadSeven() {
+      $("#title").text("The world is yours");
+      $("#desc").text("How far does your trash travel and where does your trash end up in? Have a read at the interaction guides and click next to find out.");
+      $("#title").css("background-color", "rgba(255, 255, 255, 0.5)");
+      $("#title").css("height", "300px");
+      $("#desc").css("height", "150px");
+      $("#desc").css("width", "750px");
+      $("#nextButtonFive").hide();
+      $("#nextButtonSix").show();
+      $("#nextButtonSix").css("bottom", "220px");
+      loadInstructions();
+    }
+
+    function loadInstructions() {
+      document.getElementById("map").style.pointerEvents = "none";
+      document.getElementById("mode").style.pointerEvents = "none";
+      document.getElementById("restartDisplay").style.pointerEvents = "none";
+      map.removeLayer(heatLayer);
+      map.removeLayer(gyreCircle);
+      map.removeLayer(extraGyreCircle);
+      $("#modeHint").css("display", "block");
+      $("#statusHint").css("display", "block");
+      $("#timelineHint").css("display", "block");
+      $("#coordinatesHint").css("display", "block");
+      $("#restartHint").css("display", "block");
+      $("#mapHint").css("display", "block");
+      $("#overlay").hide();
+      $("#mode").show();
+      $("#statusDisplay").show();
+      $("#timelineDisplay").show();
+      $("#coordinatesDisplayStory").show();
+      $("#restartDisplay").show();
+      $("#coordinatesDisplayStory").text("Longitude: 0, Latitude: 53");
+      $("#restartDisplay").text("Restart Story");
+      var gyreNA = new ol.Overlay({
+        element: document.getElementById("gyre-na")
+      });
+      var gyreSA = new ol.Overlay({
+        element: document.getElementById("gyre-sa")
+      });
+      var gyreIO = new ol.Overlay({
+        element: document.getElementById("gyre-io")
+      });
+      var gyreSP = new ol.Overlay({
+        element: document.getElementById("gyre-sp")
+      });
+      var gyreNALocation = ol.proj.fromLonLat([-58, 33]);
+      var gyreSALocation = ol.proj.fromLonLat([-37, -29]);
+      var gyreIOLocation = ol.proj.fromLonLat([42, -28]);
+      var gyreSPLocation = ol.proj.fromLonLat([-137, -27]);
+      map.addOverlay(gyreNA);
+      map.addOverlay(gyreSA);
+      map.addOverlay(gyreIO);
+      map.addOverlay(gyreSP);
+      gyreNA.setPosition(gyreNALocation);
+      gyreSA.setPosition(gyreSALocation);
+      gyreIO.setPosition(gyreIOLocation);
+      gyreSP.setPosition(gyreSPLocation);
+      year = 8;
+      month = 2;
+      longitude = 0;
+      latitude = 53;
+      importSample();
+    }
+
+    function importSample() {
+      d3.csv("sample.csv", function(data) {
+        d = data;
+        plotHeat()
+      });
+    }
+
+    function loadInteractive() {
+      interactiveMode = true;
+      document.getElementById("map").style.pointerEvents = "auto";
+      document.getElementById("mode").style.pointerEvents = "auto";
+      document.getElementById("restartDisplay").style.pointerEvents = "auto";
+      year = 0;
+      month = 0;
+      map.removeLayer(heatLayer);
+      map.removeLayer(gyreCircle);
+      map.removeLayer(extraGyreCircle);
+      $("#modeHint").css("display", "none");
+      $("#statusHint").css("display", "none");
+      $("#timelineHint").css("display", "none");
+      $("#coordinatesHint").css("display", "none");
+      $("#restartHint").css("display", "none");
+      $("#mapHint").css("display", "none");
+      $("#nextButtonSix").hide();
+      $("#title").hide();
+      $("#desc").hide();
+      $("#coordinatesDisplayStory").hide();
+      $("#coordinatesDisplay").show();
+      $("#statusDisplay").appendTo($(".ol-overlaycontainer"));
+      $("#timelineDisplay").appendTo($(".ol-overlaycontainer"));
+      $("#coordinatesDisplay").appendTo($(".ol-overlaycontainer"));
+      $("#statusDisplay").text("");
+      $("#timelineDisplay").text("");
+      $("#coordinateDisplay").text("");
+    }
+
+    function togglePlotMode(modeChoice) {
+      plotMode = modeChoice;
+      map.removeLayer(heatLayer);
+      map.removeLayer(lineLayer);
+      map.removeLayer(pointLayerOld);
+      map.removeLayer(pointLayerEnd);
+      map.removeLayer(gyreCircle);
+      $("#statusDisplay").text("");
+      $("#timelineDisplay").text("");
+    }
+
+    function map() {
+      map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM({
+              wrapX: false
+            })
+          })
+        ],
+        interactions: ol.interaction.defaults({
+          dragPan: false,
+          mouseWheelZoom: false,
+          doubleClickZoom: false
+        }),
+        controls: [],
+        view: new ol.View({
+          projection: 'EPSG:3857',
+          center: ol.proj.fromLonLat([0, 20]),
+          zoom: 2.585
+        })
+      });
+      map.on('pointermove', function(evt) {
+        var coordinates = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+        var cursorLongitude = Math.round(coordinates[0]);
+        var cursorLatitude = Math.round(coordinates[1]);
+        $("#coordinatesDisplay").text("Longitude: " + cursorLongitude + ", Latitude: " + cursorLatitude);
+      });
+      map.on('click', function(evt) {
+        document.getElementById("map").style.pointerEvents = "none";
+        document.getElementById("mode").style.pointerEvents = "none";
+        $("#timelineDisplay").text("");
+        $("#statusDisplay").text("Processing...");
+        map.removeLayer(heatLayer);
+        map.removeLayer(lineLayer);
+        map.removeLayer(pointLayerOld);
+        map.removeLayer(pointLayerEnd);
+        map.removeLayer(gyreCircle);
+        var coordinates = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+        longitude = Math.round(coordinates[0]);
+        latitude = Math.round(coordinates[1]);
+        longArray.push(longitude);
+        latArray.push(latitude);
+        importCSV();
+      });
+    }
+
+    function loadLabels() {
+      var gyreNA = new ol.Overlay({
+        element: document.getElementById("gyre-na")
+      });
+      var gyreSA = new ol.Overlay({
+        element: document.getElementById("gyre-sa")
+      });
+      var gyreIO = new ol.Overlay({
+        element: document.getElementById("gyre-io")
+      });
+      var gyreWP = new ol.Overlay({
+        element: document.getElementById("gyre-wp")
+      });
+      var gyreEP = new ol.Overlay({
+        element: document.getElementById("gyre-ep")
+      });
+      var gyreSP = new ol.Overlay({
+        element: document.getElementById("gyre-sp")
+      });
+      var gyreNALocation = undefined;
+      var gyreSALocation = undefined;
+      var gyreIOLocation = undefined;
+      var gyreWPLocation = undefined;
+      var gyreEPLocation = undefined;
+      var gyreSPLocation = undefined;
+      map.addOverlay(gyreNA);
+      map.addOverlay(gyreSA);
+      map.addOverlay(gyreIO);
+      map.addOverlay(gyreWP);
+      map.addOverlay(gyreEP);
+      map.addOverlay(gyreSP);
+      gyreNA.setPosition(gyreNALocation);
+      gyreSA.setPosition(gyreSALocation);
+      gyreIO.setPosition(gyreIOLocation);
+      gyreWP.setPosition(gyreWPLocation);
+      gyreEP.setPosition(gyreEPLocation);
+      gyreSP.setPosition(gyreSPLocation);
+    }
+
+    function importCSV() {
+      if (!interactiveMode) {
+        d3.csv("ff.csv", function(data) {
+          d = data;
+          $("#statusDisplay").text("Predicting...");
+          heatPlotter = setInterval(plotHeat, 1);
+        });
+      } else {
+        d3.csv("data.csv", function(data) {
+          for (var i = 0; i < data.length; i++) {
+            if (data[i]["latitude"] == latitude && data[i]["longitude"] == longitude) {
+              var csvLink = "http://assets.plasticadrift.org/globalfwdCsv/Global_index" + data[i]["id"] + "_startsinJan.csv"
+              break;
+            }
+            if (i == data.length - 1) {
+              document.getElementById("map").style.pointerEvents = "auto";
+              document.getElementById("mode").style.pointerEvents = "auto";
+              $("#statusDisplay").text("Please click on the ocean.");
+              return;
+            }
+          }
+          d3.csv(csvLink, function(data) {
+            d = data;
+            if (d.length == 0) {
+              document.getElementById("map").style.pointerEvents = "auto";
+              document.getElementById("mode").style.pointerEvents = "auto";
+              $("#statusDisplay").text("No data found for ocean region.");
+              return;
+            }
+            $("#statusDisplay").text("Predicting...");
+            if (plotMode == "heatmap") {
+              heatPlotter = setInterval(plotHeat, 200);
+            } else {
+              linePlotter = setInterval(plotLine, 200);
+            }
+          });
+        });
+      }
+    }
+
+    function plotHeat() {
+      for (var i = 0; i < d.length; i++) {
+        if (d[i]["year"] == year && d[i]["month"] == month) {
+          if (d[i]["lng"] > 180) {
+            d[i]["lng"] = -(360 - d[i]["lng"]);
+          }
+          longArray.push(parseInt(d[i]["lng"]));
+          latArray.push(parseInt(d[i]["lat"]));
+        }
+      }
+      $("#timelineDisplay").text(year + " years " + month + " months");
+      drawHeat();
+      longArray = [];
+      latArray = [];
+      if (month != 10) {
+        month += 2;
+      } else {
+        month = 0;
+        year++;
+      }
+      if (year == 10 && month != 0) {
+        clearInterval(heatPlotter);
+        if (!interactiveMode) {
+          $("#nextButtonTwo").css("opacity", "1");
+          document.getElementById("nextButtonTwo").style.pointerEvents = "auto";
+          document.getElementById("map").style.pointerEvents = "none";
+          document.getElementById("mode").style.pointerEvents = "none";
+          return;
+        }
+        year = 0;
+        month = 0;
+        $("#statusDisplay").text("Complete.");
+        checkGyre(avgLong, avgLat);
+        document.getElementById("map").style.pointerEvents = "auto";
+        document.getElementById("mode").style.pointerEvents = "auto";
+      }
+      if (year == 10) {
+        var sumLong = 0;
+        var sumLat = 0;
+        var count = 0;
+        for (var i = 0; i < d.length; i++) {
+          if (d[i]["year"] == year && d[i]["month"] == month) {
+            if (d[i]["lng"] > 180) {
+              d[i]["lng"] = -(360 - d[i]["lng"]);
+            }
+            sumLong += Math.abs(parseInt(d[i]["lng"]));
+            sumLat += Math.abs(parseInt(d[i]["lat"]));
+            count++;
+          }
+        }
+        avgLong = sumLong / count;
+        if (longitude < 0) {
+          avgLong = -avgLong;
+        }
+        avgLat = sumLat / count;
+        if (latitude < 0) {
+          avgLat = -avgLat;
+        }
+      }
+    }
+
+    function drawHeat() {
+      map.removeLayer(heatLayer);
+      heatLayer = new ol.layer.Heatmap({
+        source: new ol.source.Vector(),
+        blur: parseInt(10),
+        radius: parseInt(7),
+        opacity: 0.5
+      });
+      for (var i = 0; i < longArray.length; i++) {
+        coordinate = ol.proj.fromLonLat([longArray[i], latArray[i]]);
+        var feature = new ol.Feature({
+          geometry: new ol.geom.Point([coordinate[0], coordinate[1]])
+        });
+        heatLayer.getSource().addFeature(feature);
+      }
+      map.addLayer(heatLayer);
+    }
+
+    function plotLine() {
+      var sumLong = 0;
+      var sumLat = 0;
+      var count = 0;
+      for (var i = 0; i < d.length; i++) {
+        if (d[i]["year"] == year && d[i]["month"] == month) {
+          if (d[i]["lng"] > 180) {
+            d[i]["lng"] = -(360 - d[i]["lng"]);
+          }
+          sumLong += Math.abs(parseInt(d[i]["lng"]));
+          sumLat += Math.abs(parseInt(d[i]["lat"]));
+          count++;
+        }
+      }
+      avgLong = sumLong / count;
+      if (longitude < 0) {
+        avgLong = -avgLong;
+      }
+      avgLat = sumLat / count;
+      if (latitude < 0) {
+        avgLat = -avgLat;
+      }
+      longArray.push(parseInt(avgLong));
+      latArray.push(parseInt(avgLat));
+      $("#timelineDisplay").text(year + " years " + month + " months");
+      drawLine();
+      if (month != 10) {
+        month += 2;
+      } else {
+        month = 0;
+        year++;
+      }
+      if (year == 10 && month != 0) {
+        clearInterval(linePlotter);
+        longArray = [];
+        latArray = [];
+        year = 0;
+        month = 0;
+        $("#statusDisplay").text("Complete.");
+        checkGyre(avgLong, avgLat);
+        document.getElementById("map").style.pointerEvents = "auto";
+        document.getElementById("mode").style.pointerEvents = "auto";
+      }
+    }
+
+    function drawLine() {
+      map.removeLayer(lineLayer);
+      map.removeLayer(pointLayerOld);
+      map.removeLayer(pointLayerEnd);
+      var vectorLine = new ol.source.Vector({});
+      var vectorPointOld = new ol.source.Vector({});
+      for (var i = 1; i < longArray.length; i++) {
+        var prevCoordinate = ol.proj.fromLonLat([longArray[i - 1], latArray[i - 1]]);
+        var currCoordinate = ol.proj.fromLonLat([longArray[i], latArray[i]]);
+        var featurePointOld = new ol.Feature({
+          geometry: new ol.geom.Point(prevCoordinate)
+        });
+        var featureLine = new ol.Feature({
+          geometry: new ol.geom.LineString([prevCoordinate, currCoordinate])
+        });
+        vectorLine.addFeature(featurePointOld);
+        vectorLine.addFeature(featureLine);
+        vectorPointOld.addFeature(featurePointOld);
+      }
+      var featurePointEnd = new ol.Feature({
+        geometry: new ol.geom.Point(currCoordinate)
+      });
+      var vectorPointEnd = new ol.source.Vector({});
+      vectorPointEnd.addFeature(featurePointEnd);
+      lineLayer = new ol.layer.Vector({
+        source: vectorLine,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            fill: new ol.style.Fill({
+              color: "black",
+              weight: 1
+            }),
+            radius: 2
+          }),
+          stroke: new ol.style.Stroke({
+            color: "black",
+            width: 1
+          })
+        })
+      });
+      pointLayerOld = new ol.layer.Vector({
+        source: vectorPointOld,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            fill: new ol.style.Fill({
+              color: "black",
+              weight: 1
+            }),
+            radius: 2
+          }),
+        })
+      });
+      pointLayerEnd = new ol.layer.Vector({
+        source: vectorPointEnd,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            fill: new ol.style.Fill({
+              color: "red",
+              weight: 5
+            }),
+            radius: 2
+          }),
+        })
+      });
+      map.addLayer(lineLayer);
+      map.addLayer(pointLayerOld);
+      map.addLayer(pointLayerEnd);
+    }
+
+    function checkGyre(avgLong, avgLat) {
+      if (Math.abs(avgLong - (-45)) < 15 && Math.abs(avgLat - 31) < 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the North Atlantic Gyre.");
+        circleGyre(avgLong, avgLat);
+      } else if (Math.abs(avgLong - (-23)) <= 15 && Math.abs(avgLat - (-31)) <= 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the South Atlantic Gyre.");
+        circleGyre(avgLong, avgLat);
+      } else if (Math.abs(avgLong - 55) <= 15 && Math.abs(avgLat - (-30)) <= 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the Indian Ocean Gyre.");
+        circleGyre(avgLong, avgLat);
+      } else if (Math.abs(avgLong - (-156)) <= 15 && Math.abs(avgLat - 28) <= 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the East Pacific Gyre.");
+        circleGyre(avgLong, avgLat);
+      } else if (Math.abs(avgLong - 146) <= 15 && Math.abs(avgLat - 30) <= 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the West Pacific Gyre.");
+        circleGyre(avgLong, avgLat);
+      } else if (Math.abs(avgLong - (-120)) <= 15 && Math.abs(avgLat - (-29)) <= 10) {
+        $("#statusDisplay").text("Looks like most of your trashed ended up in the South Pacific Gyre.");
+        circleGyre(avgLong, avgLat);
+      }
+    }
+
+    function circleGyre(long, lat) {
+      var vectorGyreCircle = new ol.source.Vector({});
+      var coordinateGyreCircle = ol.proj.fromLonLat([long, lat]);
+      var featureGyreCircle = new ol.Feature({
+        geometry: new ol.geom.Point(coordinateGyreCircle)
+      });
+      vectorGyreCircle.addFeature(featureGyreCircle);
+      gyreCircle = new ol.layer.Vector({
+        source: vectorGyreCircle,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            fill: new ol.style.Fill({
+              color: [255, 0, 0, 0.5],
+              weight: 10
+            }),
+            radius: 100
+          }),
+        })
+      });
+      map.addLayer(gyreCircle);
+    }
+  </script>
+</body>
+
+</html>

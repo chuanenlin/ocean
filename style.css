@@ -1,0 +1,309 @@
+html,
+body,
+#map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  z-index: 2;
+}
+
+#mapHint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -900px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+#overlay {
+  position: absolute;
+  background: #f9f2e2;
+  opacity: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+}
+
+#title {
+  position: absolute;
+  margin: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 1200px;
+  height: 300px;
+  z-index: 2;
+  text-align: center;
+  font-family: "Open Sans", "Sans-serif";
+  font-size: 42px;
+  color: #1e272e;
+  border-radius: 10px;
+}
+
+#desc {
+  position: absolute;
+  margin: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 1000px;
+  height: 150px;
+  z-index: 2;
+  text-align: center;
+  font-family: "Consolas", "Serif";
+  font-size: 20px;
+  color: #1e272e;
+}
+
+#bubbles {
+  position: absolute;
+  margin: auto;
+  top: 32px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: none;
+}
+
+#palette {
+  position: absolute;
+  margin: auto;
+  top: 32px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+}
+
+.nextButton {
+  position: absolute;
+  margin: auto;
+  right: 0;
+  bottom: 50px;
+  left: 0;
+  z-index: 2;
+  text-align: center;
+  font-family: "Open Sans", "Sans-serif";
+  font-size: 36px;
+  color: #1e272e;
+  cursor: pointer;
+  width: 100px;
+  display: none;
+}
+
+.label {
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 10pt;
+  cursor: text;
+}
+
+.map {
+  cursor: crosshair;
+}
+
+#mode {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 16pt;
+  display: none;
+}
+
+#modeHint {
+  position: absolute;
+  top: 40px;
+  left: -1140px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+#statusDisplay {
+  position: fixed;
+  width: 300px;
+  margin-left: -150px;
+  top: 5px;
+  left: 50%;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 600;
+  font-size: 18pt;
+  display: none;
+  /* color: red; */
+}
+
+#statusHint {
+  position: absolute;
+  top: 40px;
+  left: -190px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+#timelineDisplay {
+  position: absolute;
+  top: -5px;
+  right: 5px;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 50pt;
+  display: none;
+}
+
+#timelineHint {
+  position: absolute;
+  top: 80px;
+  right: -1110px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+#coordinatesDisplay {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 18pt;
+  display: none;
+}
+
+#coordinatesDisplayStory {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 18pt;
+  display: none;
+}
+
+#coordinatesHint {
+  position: absolute;
+  bottom: 40px;
+  left: -895px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+#restartDisplay {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  font-family: "Open Sans", "Sans-serif";
+  font-weight: 100;
+  font-size: 12pt;
+  font-style: italic;
+  display: none;
+  z-index: 2;
+  cursor: pointer;
+}
+
+#restartHint {
+  position: absolute;
+  bottom: 40px;
+  right: -1125px;
+  font-family: "Consolas", "Serif";
+  font-weight: 100;
+  font-size: 11pt;
+  background: #1e272e;
+  color: #ffffff;
+  opacity: 1;
+  border-radius: 10px;
+  border: 0;
+  display: none;
+}
+
+.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 22%;
+  height: 2%;
+  padding: 1vw;
+  border: 0px;
+  border-radius: 10px;
+  color: white;
+  background-color: black;
+  font-size: 14px;
+  font-family: "Consolas", "Serif";
+  z-index: 2;
+}
+
+.palette {
+  cursor: pointer;
+}
+
+.bar {
+  fill: #1f77b4;
+}
+
+.bar:hover {
+  fill: #aec7e8;
+  cursor: pointer;
+}
+
+.barLabel {
+  font-size: 12pt;
+  font-family: "Consolas", "Serif";
+}
+
+.barReference {
+  font-size: 9pt;
+  font-family: "Consolas", "Serif";
+  fill: #ff7f0e;
+}
+
+.barAxis {
+  font-size: 8pt;
+  font-family: "Consolas", "Serif";
+}
+
+.barAxis path,
+.barAxis line {
+  fill: none;
+  stroke: #1e272e;
+  shape-rendering: crispEdges;
+}
